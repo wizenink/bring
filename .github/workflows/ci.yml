@@ -70,12 +70,58 @@ jobs:
       - name: Run multi-threaded tests
         run: ./build/mt_tests
 
-      - name: Run cachegrind (Linux only)
+  benchmarks:
+    name: Benchmarks - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            cxx: clang++-16
+            cc: clang-16
+          - os: macos-latest
+            cxx: clang++
+            cc: clang
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (Ubuntu)
         if: runner.os == 'Linux'
         run: |
-          valgrind --tool=cachegrind --cachegrind-out-file=cachegrind.out ./build/benchmark
-          echo "=== Cachegrind Summary ==="
-          cg_annotate cachegrind.out | head -50
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang-16
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake ninja
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DBUILD_BENCHMARKS=ON
+
+      - name: Build benchmarks
+        run: cmake --build build --config Release
+
+      - name: Run benchmarks
+        run: ./build/benchmarks --benchmark_min_time=0.1s
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ matrix.os }}
+          path: |
+            benchmark_*.json
+          retention-days: 30
 
   sanitizers:
     name: Sanitizers - ${{ matrix.sanitizer }}
@@ -118,14 +164,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure CMake
+      - name: Configure CMake (tests)
         run: |
           cmake -B build -DBUILD_TESTING=ON
 
-      - name: Build
+      - name: Build tests
         run: cmake --build build --config Release
 
       - name: Run tests
         run: |
           ./build/Release/unit_tests.exe
           ./build/Release/mt_tests.exe
+
+      - name: Configure CMake (benchmarks)
+        run: |
+          cmake -B build-bench -DBUILD_BENCHMARKS=ON
+
+      - name: Build benchmarks
+        run: cmake --build build-bench --config Release
+
+      - name: Run benchmarks
+        run: ./build-bench/Release/benchmarks.exe --benchmark_min_time=0.1s
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-windows
+          path: |
+            benchmark_*.json
+          retention-days: 30

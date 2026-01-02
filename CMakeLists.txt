@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.5)
 project(Bring VERSION 0.1.0 LANGUAGES CXX)
 
 
@@ -9,8 +9,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(cmake/CPM.cmake)
 
-CPMAddPackage("gh:catchorg/Catch2@3.4.0")
+CPMAddPackage("gh:catchorg/Catch2@3.12.0")
 
+
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Disable benchmark testing" FORCE)
+set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "Disable benchmark gtest" FORCE)
+set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "Disable benchmark install" FORCE)
+CPMAddPackage("gh:google/benchmark#v1.8.3")
 
 
 
@@ -35,15 +40,39 @@ if(BUILD_TESTING) # Standard CMake flag
   # This enables Clang-Tidy for the test executable too
   set_target_properties(unit_tests PROPERTIES CXX_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
 
-  add_executable(benchmark tests/benchmark.cpp)
-  target_link_libraries(benchmark PRIVATE bring::bring)
-  set_target_properties(benchmark PROPERTIES CXX_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
+  #add_executable(benchmark tests/benchmark.cpp)
+  #target_link_libraries(benchmark PRIVATE bring::bring)
+  #set_target_properties(benchmark PROPERTIES CXX_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
 
   add_executable(mt_tests tests/test_multithreaded.cpp)
   target_link_libraries(mt_tests PRIVATE bring::bring Catch2::Catch2WithMain)
   set_target_properties(mt_tests PROPERTIES CXX_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
   find_package(Threads REQUIRED)
   target_link_libraries(mt_tests PRIVATE Threads::Threads)
+
+
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    message(STATUS "Clang detected: Enabling Fuzzing and Sanitizer targets")
+    add_executable(fuzzer_test tests/fuzzer_test.cpp)
+    target_compile_options(fuzzer_test PRIVATE -fsanitize=fuzzer,address,undefined)
+    target_link_options(fuzzer_test PRIVATE -fsanitize=fuzzer,address,undefined)
+    target_link_libraries(fuzzer_test PRIVATE bring::bring)
+  endif()
+endif()
+
+if(BUILD_BENCHMARKS)
+  add_executable(benchmarks benchmarks/bench_main.cpp)
+  target_link_libraries(benchmarks PRIVATE
+        bring::bring
+        benchmark::benchmark_main
+    )
+
+  # Optimization is mandatory for benchmarks
+  if(MSVC)
+    target_compile_options(benchmarks PRIVATE /O2)
+  else()
+    target_compile_options(benchmarks PRIVATE -O3)
+  endif()
 endif()
 
 
@@ -56,7 +85,7 @@ target_include_directories(bring INTERFACE
 )
 
 if(MSVC)
-  target_compile_options(bring INTERFACE /W4 /WX)
+  target_compile_options(bring INTERFACE /W4 /WX /wd4324)
 else()
   target_compile_options(bring INTERFACE -Wall -Wextra
   -Wpedantic -Wshadow -Werror)
