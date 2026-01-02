@@ -1,0 +1,78 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+CTestTestfile.cmake
+_deps/
+
+# Compiled Object files
+*.o
+*.obj
+*.ko
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.a
+*.lib
+*.la
+*.lo
+
+# Executables
+*.exe
+*.out
+*.app
+unit_tests
+mt_tests
+benchmark
+
+# Cache files
+.cache/
+compile_commands.json
+
+# Valgrind output
+cachegrind.out*
+callgrind.out*
+massif.out*
+*.log
+
+# IDE specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Clangd
+.clangd/
+.clang-tidy-cache/
+
+# Test results
+Testing/
+*.gcda
+*.gcno
+*.gcov
+
+# Documentation
+docs/_build/
+docs/html/
+docs/latex/
+
+# Package managers
+.conan/
+vcpkg_installed/

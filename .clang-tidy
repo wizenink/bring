@@ -1,0 +1,21 @@
+---
+Checks: >
+  -*,
+  bugprone-*,
+  cppcoreguidelines-*,
+  modernize-*,
+  performance-*,
+  readability-*,
+  -modernize-use-trailing-return-type,
+  cppcoreguidelines-no-malloc,
+  performance-move-const-arg,
+  performance-noexcept-move-constructor,
+  bugprone-use-after-move
+
+WarningsAsErrors: "*"
+
+CheckOptions:
+  - key: readability-identifier-naming.MemberPrefix
+    value: _
+  - key: readability-identifier-naming.MemberCase
+    value: camelBack

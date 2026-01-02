@@ -1,0 +1,131 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: ${{ matrix.os }} - ${{ matrix.compiler }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        compiler: [gcc, clang]
+        exclude:
+          - os: macos-latest
+            compiler: gcc
+        include:
+          - os: ubuntu-latest
+            compiler: gcc
+            cxx: g++-12
+            cc: gcc-12
+          - os: ubuntu-latest
+            compiler: clang
+            cxx: clang++-16
+            cc: clang-16
+          - os: macos-latest
+            compiler: clang
+            cxx: clang++
+            cc: clang
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies (Ubuntu)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build valgrind
+        if [ "${{ matrix.compiler }}" = "gcc" ]; then
+          sudo apt-get install -y g++-12
+        else
+          sudo apt-get install -y clang-16 clang-tidy-16
+        fi
+
+    - name: Install dependencies (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        brew install cmake ninja
+
+    - name: Configure CMake
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+          -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+          -DBUILD_TESTING=ON
+
+    - name: Build
+      run: cmake --build build --config Release
+
+    - name: Run unit tests
+      run: ./build/unit_tests
+
+    - name: Run multi-threaded tests
+      run: ./build/mt_tests
+
+    - name: Run cachegrind (Linux only)
+      if: runner.os == 'Linux'
+      run: |
+        valgrind --tool=cachegrind --cachegrind-out-file=cachegrind.out ./build/benchmark
+        echo "=== Cachegrind Summary ==="
+        cg_annotate cachegrind.out | head -50
+
+  sanitizers:
+    name: Sanitizers - ${{ matrix.sanitizer }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        sanitizer: [address, thread, undefined]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake ninja-build clang-16
+
+    - name: Configure with ${{ matrix.sanitizer }} sanitizer
+      run: |
+        cmake -B build \
+          -G Ninja \
+          -DCMAKE_BUILD_TYPE=Debug \
+          -DCMAKE_CXX_COMPILER=clang++-16 \
+          -DCMAKE_C_COMPILER=clang-16 \
+          -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer" \
+          -DBUILD_TESTING=ON
+
+    - name: Build
+      run: cmake --build build
+
+    - name: Run tests with ${{ matrix.sanitizer }} sanitizer
+      run: |
+        ./build/unit_tests
+        ./build/mt_tests
+
+  windows:
+    name: Windows - MSVC
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Configure CMake
+      run: |
+        cmake -B build -DBUILD_TESTING=ON
+
+    - name: Build
+      run: cmake --build build --config Release
+
+    - name: Run tests
+      run: |
+        ./build/Release/unit_tests.exe
+        ./build/Release/mt_tests.exe
