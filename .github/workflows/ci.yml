@@ -100,7 +100,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug \
             -DCMAKE_CXX_COMPILER=clang++-16 \
             -DCMAKE_C_COMPILER=clang-16 \
-            -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer -DCATCH_CONFIG_NO_POSIX_SIGNALS" \
             -DBUILD_TESTING=ON
 
       - name: Build
