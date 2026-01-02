@@ -44,6 +44,42 @@ if(BUILD_TESTING) # Standard CMake flag
   set_target_properties(mt_tests PROPERTIES CXX_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
   find_package(Threads REQUIRED)
   target_link_libraries(mt_tests PRIVATE Threads::Threads)
+
+  # Only build fuzzer on Linux with Clang (not macOS - fuzzer runtime not available)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND UNIX AND NOT APPLE AND NOT CMAKE_CXX_FLAGS MATCHES "-fsanitize")
+    message(STATUS "Linux + Clang detected without external sanitizers: Enabling Fuzzing target")
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/fuzzer_test.cpp")
+      add_executable(fuzzer_test tests/fuzzer_test.cpp)
+      target_compile_options(fuzzer_test PRIVATE -fsanitize=fuzzer,address,undefined)
+      target_link_options(fuzzer_test PRIVATE -fsanitize=fuzzer,address,undefined)
+      target_link_libraries(fuzzer_test PRIVATE bring::bring)
+    endif()
+  endif()
+endif()
+
+if(BUILD_BENCHMARKS)
+  CPMAddPackage(
+    NAME benchmark
+    GITHUB_REPOSITORY google/benchmark
+    GIT_TAG v1.8.3
+    OPTIONS
+      "BENCHMARK_ENABLE_TESTING OFF"
+      "BENCHMARK_ENABLE_GTEST_TESTS OFF"
+      "BENCHMARK_ENABLE_INSTALL OFF"
+  )
+
+  add_executable(benchmarks benchmarks/bench_main.cpp)
+  target_link_libraries(benchmarks PRIVATE
+        bring::bring
+        benchmark::benchmark
+    )
+
+  # Optimization is mandatory for benchmarks
+  if(MSVC)
+    target_compile_options(benchmarks PRIVATE /O2)
+  else()
+    target_compile_options(benchmarks PRIVATE -O3)
+  endif()
 endif()
 
 
@@ -56,7 +92,7 @@ target_include_directories(bring INTERFACE
 )
 
 if(MSVC)
-  target_compile_options(bring INTERFACE /W4 /WX)
+  target_compile_options(bring INTERFACE /W4 /WX /wd4324)
 else()
   target_compile_options(bring INTERFACE -Wall -Wextra
   -Wpedantic -Wshadow -Werror)
