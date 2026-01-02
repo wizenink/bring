@@ -72,16 +72,16 @@ public:
   }
 
   [[nodiscard]] bool is_full() noexcept {
-    const size_t current_head = _head.load(std::memory_order_relaxed);
+    const size_t current_head = _head.load(std::memory_order_acquire);
     const size_t next_head = (current_head + 1) & (Capacity - 1);
     // If next_head hits tail, buffer is full
     return next_head == _tail.load(std::memory_order_acquire);
   }
 
   [[nodiscard]] bool is_empty() noexcept {
-    const size_t current_tail = _tail.load(std::memory_order_relaxed);
+    const size_t current_head = _head.load(std::memory_order_acquire);
     // If tail equals head, buffer is empty
-    return current_tail == _head.load(std::memory_order_acquire);
+    return current_head == _tail.load(std::memory_order_acquire);
   }
 
   template <typename U>
