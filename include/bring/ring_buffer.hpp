@@ -84,6 +84,30 @@ public:
     return current_head == _tail.load(std::memory_order_acquire);
   }
 
+  // Check both empty and full state from a consistent atomic snapshot
+  struct BufferState {
+    bool empty;
+    bool full;
+  };
+
+  [[nodiscard]] BufferState get_state() noexcept {
+    // Read head and tail in a loop until we get a consistent snapshot
+    // This prevents race conditions where values change between reads
+    size_t head1, tail1, head2, tail2;
+    do {
+      head1 = _head.load(std::memory_order_acquire);
+      tail1 = _tail.load(std::memory_order_acquire);
+      head2 = _head.load(std::memory_order_acquire);
+      tail2 = _tail.load(std::memory_order_acquire);
+    } while (head1 != head2 || tail1 != tail2);
+
+    const size_t next_head = (head1 + 1) & (Capacity - 1);
+    return BufferState{
+        .empty = (head1 == tail1),
+        .full = (next_head == tail1)
+    };
+  }
+
   template <typename U>
     requires std::convertible_to<U, T>
   bool try_push(U &&item) {

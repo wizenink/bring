@@ -414,8 +414,10 @@ TEST_CASE("RingBuffer is_empty and is_full thread-safe", "[ring_buffer][threadin
   // Observer thread - checks is_empty and is_full
   std::thread observer([&]() {
     while (!test_done.load(std::memory_order_acquire)) {
-      const bool empty = buffer.is_empty();
-      const bool full = buffer.is_full();
+      // Use get_state() to atomically check both conditions from same snapshot
+      const auto state = buffer.get_state();
+      const bool empty = state.empty;
+      const bool full = state.full;
 
       // Buffer should never be both empty and full
       REQUIRE_FALSE((empty && full));
