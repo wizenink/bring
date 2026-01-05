@@ -29,21 +29,34 @@ endif()
 
 
 if(BUILD_TESTING) # Standard CMake flag
+  enable_testing()
+
   add_executable(unit_tests tests/test_main.cpp)
   target_link_libraries(unit_tests PRIVATE bring::bring Catch2::Catch2WithMain)
 
   # This enables Clang-Tidy for the test executable too
   set_target_properties(unit_tests PROPERTIES CXX_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
 
-  add_executable(benchmark tests/benchmark.cpp)
-  target_link_libraries(benchmark PRIVATE bring::bring)
-  set_target_properties(benchmark PROPERTIES CXX_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
+  add_executable(cachegrind_bench tests/benchmark.cpp)
+  target_link_libraries(cachegrind_bench PRIVATE bring::bring)
+  set_target_properties(cachegrind_bench PROPERTIES CXX_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
 
   add_executable(mt_tests tests/test_multithreaded.cpp)
   target_link_libraries(mt_tests PRIVATE bring::bring Catch2::Catch2WithMain)
   set_target_properties(mt_tests PROPERTIES CXX_CLANG_TIDY "${CMAKE_CXX_CLANG_TIDY}")
   find_package(Threads REQUIRED)
   target_link_libraries(mt_tests PRIVATE Threads::Threads)
+
+  # Register tests with CTest
+  add_test(NAME UnitTests COMMAND unit_tests)
+  add_test(NAME MultiThreadedTests COMMAND mt_tests)
+
+  # Custom target to run all tests
+  add_custom_target(run_tests
+    COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+    DEPENDS unit_tests mt_tests
+    COMMENT "Running all tests"
+  )
 
   # Only build fuzzer on Linux with Clang (not macOS - fuzzer runtime not available)
   if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND UNIX AND NOT APPLE AND NOT CMAKE_CXX_FLAGS MATCHES "-fsanitize")
@@ -80,6 +93,14 @@ if(BUILD_BENCHMARKS)
   else()
     target_compile_options(benchmarks PRIVATE -O3)
   endif()
+
+  # Custom target to run benchmarks
+  add_custom_target(run_benchmarks
+    COMMAND benchmarks
+    DEPENDS benchmarks
+    COMMENT "Running benchmarks"
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+  )
 endif()
 
 

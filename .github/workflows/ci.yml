@@ -64,16 +64,13 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
 
-      - name: Run unit tests
-        run: ./build/unit_tests
-
-      - name: Run multi-threaded tests
-        run: ./build/mt_tests
+      - name: Run tests
+        run: cmake --build build --target run_tests
 
       - name: Run cachegrind (Linux only)
         if: runner.os == 'Linux'
         run: |
-          valgrind --tool=cachegrind --cachegrind-out-file=cachegrind.out ./build/benchmark
+          valgrind --tool=cachegrind --cachegrind-out-file=cachegrind.out ./build/cachegrind_bench
           echo "=== Cachegrind Summary ==="
           cg_annotate cachegrind.out | head -50
 
